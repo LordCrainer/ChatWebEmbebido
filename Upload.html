@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title>SOCKET UPLOAD</title>
+</head>
+
+<body>
+  <div id="UploadBox">
+    <h2>Video Uploader</h2>
+    <span id='UploadArea'>
+      <label for="FileBox">Choose A File: </label><input type="file" id="FileBox"><br>
+      <label for="NameBox">Name: </label><input type="text" id="NameBox"><br>
+      <label for="sendButton">SEND SERVIDOR: </label><input type="button" id="sendButton"><br>
+      <button type='button' id='UploadButton' class='Button'>Upload</button>
+    </span>
+  </div>
+</body>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.4.5/socket.io.min.js"></script>
+<script type="text/javascript">
+  window.addEventListener("load", Ready);
+  const kiloByte = 1024;
+  const megaByte = kiloByte*kiloByte
+  function Ready() {
+    if (window.File && window.FileReader) { //These are the relevant HTML5 objects that we are going to use
+      document.getElementById('UploadButton').addEventListener('click', StartUpload);
+      document.getElementById('FileBox').addEventListener('change', FileChosen);
+      document.getElementById('sendButton').addEventListener('click', sendMessage);
+    } else {
+      document.getElementById('UploadArea').innerHTML = "Your Browser Doesn't Support The File API Please Update Your Browser";
+    }
+  }
+  var SelectedFile;
+  var socket = io.connect('http://acfpro.onmypc.net', {path: '/prueba'});
+
+  function sendMessage(){
+    socket.emit('SendToServer',{
+      message : 'EL CLIENTE TE HA ENVIADO UN MENSAJE'
+    })
+  }
+  socket.on('SendClient', function(data){
+    console.log("Data: ", data.message);
+  })
+  function FileChosen(evento) {
+    console.log(evento.target);
+    SelectedFile = evento.target.files[0];
+    document.getElementById('NameBox').value = SelectedFile.name;
+  }
+
+  //var socket = io.connect('127.0.0.1:2020'); //http://acfpro.onmypc.net
+  var FReader;
+  var Name, cnt=0;
+
+  function StartUpload() {
+    if (document.getElementById('FileBox').value != "") {
+      FReader = new FileReader();
+      Name = document.getElementById('NameBox').value;
+      var Content = "<span id='NameArea'>Uploading " + SelectedFile.name + " as " + Name + "</span>";
+      Content += '<div id="ProgressContainer"><div id="ProgressBar"></div></div><span id="percent">0%</span>';
+      Content += "<span id='Uploaded'> - <span id='MB'>0</span>/" + Math.round(SelectedFile.size / (megaByte)) + "MB</span>";
+      document.getElementById('UploadArea').innerHTML = Content;
+      FReader.onload = function(evento) {
+        cnt++;
+        console.log(cnt);
+        socket.emit('Upload', {
+          'Name': Name,
+          Data: evento.target.result //Envía el contenido del archivos, si FileReader.readyState==2, lectura finalizada
+        });
+      }
+      socket.emit('Start', {
+        'Name': Name,
+        'Size': SelectedFile.size //Tamaño del archivo elegido
+      });
+    } else {
+      alert("Please Select A File");
+    }
+  }
+
+  socket.on('MoreData', function(data) {
+    UpdateBar(data['Percent']);
+    var nextBlockSize = 512 * kiloByte;
+    var Place = data['Place'] * nextBlockSize; //The Next Blocks Starting Position
+    var NewFile; //The Variable that will hold the new Block of Data
+    if (SelectedFile.slice)
+      NewFile = SelectedFile.slice(Place, Place + Math.min(nextBlockSize, (SelectedFile.size - Place)));
+    else
+      NewFile = SelectedFile.slice(Place, Place + Math.min(nextBlockSize, (SelectedFile.size - Place)));
+    FReader.readAsBinaryString(NewFile);
+  });
+
+  function UpdateBar(percent) {
+    document.getElementById('ProgressBar').style.width = percent + '%';
+    document.getElementById('percent').innerHTML = (Math.round(percent * 100) / 100) + '%';
+    var MBDone = Math.round(((percent / 100.0) * SelectedFile.size) / 1048576);
+    document.getElementById('MB').innerHTML = MBDone;
+  }
+
+  var Path = "Video/"; //localhost
+
+  socket.on('Done', function(data) {
+    var Content = "Video Successfully Uploaded !!"
+    Content += "<img id='Thumb' src='" + Path + data['Image'] + "' alt='" + Name + "'><br>";
+    Content += "<button  type='button' name='Upload' value='' id='Restart' class='Button'>Upload Another</button>";
+    document.getElementById('UploadArea').innerHTML = Content;
+    document.getElementById('Restart').addEventListener('click', Refresh);
+  });
+
+  function Refresh() {
+    location.reload(true);
+  }
+</script>
+<script async src="https://telegram.org/js/telegram-widget.js?5" data-telegram-login="LANUBETV_CHATBOT" data-size="large" data-onauth="onTelegramAuth(user)" data-request-access="write"></script>
+<script type="text/javascript">
+  function onTelegramAuth(user) {
+    alert('Logged in as ' + user.first_name + ' ' + user.last_name + ' (' + user.id + (user.username ? ', @' + user.username : '') + ')');
+  }
+</script>
+
+</html>

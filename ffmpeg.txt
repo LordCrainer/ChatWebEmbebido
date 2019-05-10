@@ -1,0 +1,5 @@
+ffmpeg -i nombre_video -ss 01:30 -r 1 -an -vframes 1 -f mjpeg Imagen.jpg
+
+ffmpeg -i output.mov -vcodec mjpeg -qscale 1 -an output.jpg
+
+ffmpeg -i input_file.mp4 -ss 01:23:45 -vframes 1 output.jpg
